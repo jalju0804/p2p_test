@@ -4,14 +4,12 @@ import (
 	"bufio"
 	"context"
 	"fmt"
-	"net"
 	"os"
 
 	libp2p "github.com/libp2p/go-libp2p"
 	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/multiformats/go-multiaddr"
-	"github.com/pion/stun"
 )
 
 func handleStream(stream network.Stream) {
@@ -55,46 +53,6 @@ func writeData(rw *bufio.ReadWriter) {
 	}
 }
 
-func getPublicAddress(stunServerAddr string) (net.Addr, error) {
-	conn, err := net.ListenPacket("udp4", "0.0.0.0:0")
-	if err != nil {
-		return nil, err
-	}
-	defer conn.Close()
-
-	raddr, err := net.ResolveUDPAddr("udp4", stunServerAddr)
-	if err != nil {
-		return nil, err
-	}
-
-	message := stun.MustBuild(stun.TransactionID, stun.BindingRequest)
-	_, err = conn.WriteTo(message.Raw, raddr)
-	if err != nil {
-		return nil, err
-	}
-
-	buf := make([]byte, 1024)
-	n, _, err := conn.ReadFrom(buf)
-	if err != nil {
-		return nil, err
-	}
-
-	var res stun.Message
-	if err := res.UnmarshalBinary(buf[:n]); err != nil {
-		return nil, err
-	}
-
-	var xorMappedAddress stun.XORMappedAddress
-	if err := xorMappedAddress.GetFrom(&res); err != nil {
-		return nil, err
-	}
-
-	return &net.UDPAddr{
-		IP:   xorMappedAddress.IP,
-		Port: xorMappedAddress.Port,
-	}, nil
-}
-
 func main() {
 	ctx := context.Background()
 
@@ -104,17 +62,6 @@ func main() {
 	}
 
 	node.SetStreamHandler("/chat/1.0.0", handleStream)
-
-	stunServerAddr := "stun.l.google.com:19302"
-
-	// 퍼블릭 주소 얻기
-	publicAddr, err := getPublicAddress(stunServerAddr)
-	if err != nil {
-		fmt.Println("퍼블릭 주소 얻기 실패:", err)
-		return
-	}
-	fmt.Print("퍼블릭 주소: ")
-	fmt.Println(publicAddr)
 
 	fmt.Println("This node:", node.ID().Pretty(), "\n", node.Addrs())
 
