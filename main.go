@@ -8,6 +8,7 @@ import (
 	"os"
 
 	libp2p "github.com/libp2p/go-libp2p"
+	circuit "github.com/libp2p/go-libp2p-circuit"
 	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/multiformats/go-multiaddr"
@@ -98,7 +99,11 @@ func getPublicAddress(stunServerAddr string) (net.Addr, error) {
 func main() {
 	ctx := context.Background()
 
-	node, err := libp2p.New(ctx)
+	node, err := libp2p.New(ctx,
+		libp2p.EnableNATService(),
+		libp2p.EnableRelay(circuit.RelayOpt(circuit.Hop)),
+		libp2p.NATPortMap(),
+	)
 	if err != nil {
 		panic(err)
 	}
